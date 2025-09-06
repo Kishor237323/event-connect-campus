@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
   BarChart3, 
   TrendingUp, 
@@ -13,39 +14,86 @@ import {
   Star,
   Award,
   Clock,
-  Target
+  Target,
+  RefreshCw,
+  Database,
+  Loader2
 } from "lucide-react";
-
-const eventPopularity = [
-  { name: "Tech Symposium 2024", registrations: 180, capacity: 200, attendance: 162, rating: 4.8 },
-  { name: "Cultural Festival", registrations: 450, capacity: 500, attendance: 421, rating: 4.9 },
-  { name: "Career Fair", registrations: 320, capacity: 400, attendance: 298, rating: 4.6 },
-  { name: "Science Fair", registrations: 85, capacity: 150, attendance: 78, rating: 4.5 },
-  { name: "Sports Meet", registrations: 250, capacity: 300, attendance: 235, rating: 4.7 }
-];
-
-const studentParticipation = [
-  { name: "Carol Davis", eventsAttended: 15, registrations: 18, attendanceRate: 83, major: "Business" },
-  { name: "Alice Johnson", eventsAttended: 12, registrations: 15, attendanceRate: 80, major: "Computer Science" },
-  { name: "Bob Smith", eventsAttended: 8, registrations: 10, attendanceRate: 80, major: "Engineering" },
-  { name: "Emma Wilson", eventsAttended: 11, registrations: 14, attendanceRate: 79, major: "Arts" },
-  { name: "David Brown", eventsAttended: 9, registrations: 12, attendanceRate: 75, major: "Science" }
-];
-
-const monthlyStats = [
-  { month: "Jan", events: 8, registrations: 1200, attendance: 1050 },
-  { month: "Feb", events: 12, registrations: 1800, attendance: 1620 },
-  { month: "Mar", events: 16, registrations: 2400, attendance: 2100 },
-  { month: "Apr", events: 10, registrations: 1500, attendance: 1300 }
-];
-
-const topActiveStudents = [
-  { name: "Carol Davis", events: 15 },
-  { name: "Alice Johnson", events: 12 },
-  { name: "Emma Wilson", events: 11 }
-];
+import { useDataService, useDashboardStats, useEventPopularityReport, useStudentParticipationReport } from "@/hooks/useDataService";
+import { useState } from "react";
 
 export default function Reports() {
+  const [activeTab, setActiveTab] = useState("popularity");
+  const [collegeFilter, setCollegeFilter] = useState<string | undefined>(undefined);
+  
+  // Data service hooks
+  const { isInitialized, isLoading: isDataLoading, error: dataError, initializeData } = useDataService();
+  const { stats: dashboardStats, isLoading: isStatsLoading, error: statsError, fetchStats: refetchStats } = useDashboardStats();
+  const { report: eventPopularity, isLoading: isPopularityLoading, error: popularityError, fetchReport: refetchPopularity } = useEventPopularityReport();
+  const { report: studentParticipation, isLoading: isParticipationLoading, error: participationError, fetchReport: refetchParticipation } = useStudentParticipationReport();
+  // Mock data for missing reports
+  const monthlyTrends = [];
+  const isTrendsLoading = false;
+  const trendsError = null;
+  const topStudents = [];
+  const isTopStudentsLoading = false;
+  const topStudentsError = null;
+  const eventTypeAnalysis = [];
+  const isTypeAnalysisLoading = false;
+  const typeAnalysisError = null;
+
+  const handleRefreshData = () => {
+    refetchPopularity();
+    refetchParticipation();
+    refetchStats();
+  };
+
+  const handleExportReport = async (reportType: string) => {
+    try {
+      // In a real implementation, this would call the API to generate and download the report
+      console.log(`Exporting ${reportType} report...`);
+      // For now, just show a success message
+      alert(`Exporting ${reportType} report... (This would download a CSV file in a real implementation)`);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Export failed. Please try again.');
+    }
+  };
+
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="w-96">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center space-y-4">
+              <Database className="h-12 w-12 text-muted-foreground" />
+              <h2 className="text-xl font-semibold">Initializing Database</h2>
+              <p className="text-muted-foreground text-center">
+                Setting up the database and populating with sample data...
+              </p>
+              {isDataLoading && <Loader2 className="h-6 w-6 animate-spin" />}
+              {dataError && (
+                <Alert className="w-full">
+                  <AlertDescription>
+                    {dataError}
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="ml-2"
+                      onClick={initializeData}
+                    >
+                      Retry
+                    </Button>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -56,16 +104,49 @@ export default function Reports() {
             <p className="text-muted-foreground">Comprehensive insights into event performance and student engagement</p>
           </div>
           <div className="flex items-center space-x-2 mt-4 md:mt-0">
-            <Button variant="outline" size="sm">
-              <Filter className="mr-2 h-4 w-4" />
-              Filter
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleRefreshData}
+              disabled={isStatsLoading}
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${isStatsLoading ? 'animate-spin' : ''}`} />
+              Refresh
             </Button>
-            <Button className="bg-gradient-primary shadow-glow">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setCollegeFilter(undefined)}
+            >
+              <Filter className="mr-2 h-4 w-4" />
+              All Colleges
+            </Button>
+            <Button 
+              className="bg-gradient-primary shadow-glow"
+              onClick={() => handleExportReport('comprehensive')}
+            >
               <Download className="mr-2 h-4 w-4" />
               Export Report
             </Button>
           </div>
         </div>
+
+        {/* Error Display */}
+        {(statsError || popularityError || participationError || trendsError || topStudentsError || typeAnalysisError) && (
+          <Alert className="mb-6">
+            <AlertDescription>
+              Some reports failed to load. Please try refreshing the data.
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="ml-2"
+                onClick={handleRefreshData}
+              >
+                Retry
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Summary Cards */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -77,10 +158,11 @@ export default function Reports() {
               <Calendar className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">46</div>
+              <div className="text-2xl font-bold text-foreground">
+                {isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : dashboardStats?.total_events || 0}
+              </div>
               <p className="text-xs text-success flex items-center mt-1">
-                <TrendingUp className="mr-1 h-3 w-3" />
-                +15% from last semester
+                
               </p>
             </CardContent>
           </Card>
@@ -93,10 +175,11 @@ export default function Reports() {
               <Users className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">6,900</div>
+              <div className="text-2xl font-bold text-foreground">
+                {isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : dashboardStats?.total_registrations?.toLocaleString() || 0}
+              </div>
               <p className="text-xs text-success flex items-center mt-1">
-                <TrendingUp className="mr-1 h-3 w-3" />
-                +22% from last semester
+                
               </p>
             </CardContent>
           </Card>
@@ -109,10 +192,11 @@ export default function Reports() {
               <Target className="h-4 w-4 text-accent" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">87%</div>
+              <div className="text-2xl font-bold text-foreground">
+                {isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : `${dashboardStats?.average_attendance_rate || 0}%`}
+              </div>
               <p className="text-xs text-success flex items-center mt-1">
-                <TrendingUp className="mr-1 h-3 w-3" />
-                +5% from last semester
+               
               </p>
             </CardContent>
           </Card>
@@ -125,17 +209,18 @@ export default function Reports() {
               <Star className="h-4 w-4 text-primary-glow" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">4.7</div>
+              <div className="text-2xl font-bold text-foreground">
+                {isStatsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : dashboardStats?.average_rating || 0}
+              </div>
               <p className="text-xs text-success flex items-center mt-1">
-                <TrendingUp className="mr-1 h-3 w-3" />
-                +0.3 from last semester
+               
               </p>
             </CardContent>
           </Card>
         </div>
 
         {/* Reports Tabs */}
-        <Tabs defaultValue="popularity" className="space-y-6">
+        <Tabs defaultValue="popularity" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full md:w-auto grid-cols-2 md:grid-cols-4">
             <TabsTrigger value="popularity">Event Popularity</TabsTrigger>
             <TabsTrigger value="participation">Student Participation</TabsTrigger>
@@ -146,25 +231,42 @@ export default function Reports() {
           <TabsContent value="popularity">
             <Card className="shadow-elegant">
               <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
                 <CardTitle className="text-foreground">Event Popularity Report</CardTitle>
                 <CardDescription>Events ranked by registration numbers and attendance rates</CardDescription>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleExportReport('event-popularity')}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
+                {isPopularityLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : (
                 <div className="space-y-6">
                   {eventPopularity.map((event, index) => (
-                    <div key={index} className="p-4 rounded-lg border bg-gradient-card">
+                      <div key={event.event_id} className="p-4 rounded-lg border bg-gradient-card">
                       <div className="flex items-start justify-between mb-3">
                         <div>
-                          <h4 className="font-semibold text-foreground">{event.name}</h4>
+                            <h4 className="font-semibold text-foreground">{event.title}</h4>
                           <div className="flex items-center space-x-2 mt-1">
                             <div className="flex items-center">
                               {[...Array(5)].map((_, i) => (
                                 <Star 
                                   key={i} 
-                                  className={`h-3 w-3 ${i < Math.floor(event.rating) ? 'text-accent fill-current' : 'text-muted-foreground'}`} 
+                                    className={`h-3 w-3 ${i < Math.floor(event.average_rating) ? 'text-accent fill-current' : 'text-muted-foreground'}`} 
                                 />
                               ))}
-                              <span className="ml-1 text-sm text-muted-foreground">{event.rating}</span>
+                                <span className="ml-1 text-sm text-muted-foreground">{event.average_rating}</span>
                             </div>
                           </div>
                         </div>
@@ -183,9 +285,9 @@ export default function Reports() {
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground mb-1">Attendance Rate</p>
-                          <Progress value={(event.attendance / event.registrations) * 100} className="h-2" />
+                            <Progress value={event.attendance_rate} className="h-2" />
                           <p className="text-xs text-muted-foreground mt-1">
-                            {event.attendance}/{event.registrations} ({Math.round((event.attendance / event.registrations) * 100)}%)
+                              {event.attendance}/{event.registrations} ({event.attendance_rate}%)
                           </p>
                         </div>
                         <div className="flex items-center justify-center">
@@ -198,6 +300,7 @@ export default function Reports() {
                     </div>
                   ))}
                 </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -205,13 +308,30 @@ export default function Reports() {
           <TabsContent value="participation">
             <Card className="shadow-elegant">
               <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
                 <CardTitle className="text-foreground">Student Participation Analysis</CardTitle>
                 <CardDescription>Individual student engagement and attendance patterns</CardDescription>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleExportReport('student-participation')}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
+                {isParticipationLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : (
                 <div className="space-y-4">
                   {studentParticipation.map((student, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 rounded-lg border bg-gradient-card">
+                      <div key={student.student_id} className="flex items-center justify-between p-4 rounded-lg border bg-gradient-card">
                       <div className="flex items-center space-x-4">
                         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-primary text-primary-foreground font-medium">
                           {index + 1}
@@ -223,21 +343,22 @@ export default function Reports() {
                       </div>
                       <div className="grid grid-cols-3 gap-6 text-center">
                         <div>
-                          <p className="text-lg font-bold text-foreground">{student.eventsAttended}</p>
+                            <p className="text-lg font-bold text-foreground">{student.events_attended}</p>
                           <p className="text-xs text-muted-foreground">Events Attended</p>
                         </div>
                         <div>
-                          <p className="text-lg font-bold text-foreground">{student.registrations}</p>
+                            <p className="text-lg font-bold text-foreground">{student.events_registered}</p>
                           <p className="text-xs text-muted-foreground">Total Registrations</p>
                         </div>
                         <div>
-                          <p className="text-lg font-bold text-success">{student.attendanceRate}%</p>
+                            <p className="text-lg font-bold text-success">{student.attendance_rate}%</p>
                           <p className="text-xs text-muted-foreground">Attendance Rate</p>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -245,36 +366,54 @@ export default function Reports() {
           <TabsContent value="trends">
             <Card className="shadow-elegant">
               <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
                 <CardTitle className="text-foreground">Monthly Trends</CardTitle>
                 <CardDescription>Event activity and participation trends over time</CardDescription>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleExportReport('monthly-trends')}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
+                {isTrendsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : (
                 <div className="space-y-6">
-                  {monthlyStats.map((month, index) => (
+                    {monthlyTrends?.map((month, index) => (
                     <div key={index} className="p-4 rounded-lg border bg-gradient-card">
                       <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-lg font-semibold text-foreground">{month.month} 2024</h4>
-                        <Badge variant="outline">{month.events} Events</Badge>
+                          <h4 className="text-lg font-semibold text-foreground">{month.month}</h4>
+                          <Badge variant="outline">{month.events_count} Events</Badge>
                       </div>
                       <div className="grid grid-cols-2 gap-6">
                         <div>
                           <p className="text-sm text-muted-foreground mb-2">Registrations</p>
                           <div className="flex items-center space-x-2">
                             <Progress value={70} className="flex-1 h-2" />
-                            <span className="text-sm font-medium text-foreground">{month.registrations.toLocaleString()}</span>
+                              <span className="text-sm font-medium text-foreground">{month.total_registrations.toLocaleString()}</span>
                           </div>
                         </div>
                         <div>
                           <p className="text-sm text-muted-foreground mb-2">Attendance</p>
                           <div className="flex items-center space-x-2">
                             <Progress value={60} className="flex-1 h-2" />
-                            <span className="text-sm font-medium text-foreground">{month.attendance.toLocaleString()}</span>
+                              <span className="text-sm font-medium text-foreground">{month.total_attendance.toLocaleString()}</span>
                           </div>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -290,8 +429,13 @@ export default function Reports() {
                   <CardDescription>Students with highest event participation this semester</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {topActiveStudents.map((student, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-gradient-card">
+                  {isTopStudentsLoading ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : (
+                    topStudents.slice(0, 3).map((student, index) => (
+                      <div key={student.student_id} className="flex items-center justify-between p-3 rounded-lg bg-gradient-card">
                       <div className="flex items-center space-x-3">
                         <div className={`flex h-8 w-8 items-center justify-center rounded-full font-medium text-sm ${
                           index === 0 ? 'bg-accent text-accent-foreground' :
@@ -303,10 +447,11 @@ export default function Reports() {
                         <span className="font-medium text-foreground">{student.name}</span>
                       </div>
                       <Badge variant="outline" className="font-medium">
-                        {student.events} events
+                          {student.events_attended} events
                       </Badge>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </CardContent>
               </Card>
 
@@ -332,7 +477,7 @@ export default function Reports() {
                       <span className="font-medium text-primary">High Retention</span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      87% average attendance rate across all events
+                      {dashboardStats?.average_attendance_rate || 0}% average attendance rate across all events
                     </p>
                   </div>
 
@@ -342,7 +487,7 @@ export default function Reports() {
                       <span className="font-medium text-accent">Quality Events</span>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      Average event satisfaction rating improved to 4.7/5.0
+                      Average event satisfaction rating: {dashboardStats?.average_rating || 0}/5.0
                     </p>
                   </div>
                 </CardContent>

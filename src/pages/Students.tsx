@@ -140,23 +140,6 @@ export default function Students() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Students Management</h1>
-            <p className="text-muted-foreground">Track student participation and engagement</p>
-          </div>
-          <div className="flex items-center space-x-2 mt-4 md:mt-0">
-            <Button variant="outline" size="sm">
-              <Download className="mr-2 h-4 w-4" />
-              Export Data
-            </Button>
-            <Button className="bg-gradient-primary shadow-glow">
-              <UserPlus className="mr-2 h-4 w-4" />
-              Add Student
-            </Button>
-          </div>
-        </div>
 
         {/* Stats Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">

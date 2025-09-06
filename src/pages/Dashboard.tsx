@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CreateEventModal } from "@/components/CreateEventModal";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { 
@@ -13,6 +14,10 @@ import {
   Star,
   BarChart3
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { CreateEventRequest } from "@/types";
+
 
 const upcomingEvents = [
   {
@@ -79,6 +84,24 @@ const stats = [
 ];
 
 export default function Dashboard() {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const navigate = useNavigate();
+
+  const handleCreateEvent = async (eventData: CreateEventRequest): Promise<void> => {
+    setIsCreating(true);
+    try {
+      // TODO: Add your event creation logic here, e.g. API call
+      // await createEvent(eventData);
+    } finally {
+      setIsCreating(false);
+      setIsCreateModalOpen(false);
+      navigate('/events');
+    }
+  };
+
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
@@ -88,10 +111,20 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
             <p className="text-muted-foreground">Overview of your campus events and activities</p>
           </div>
-          <Button className="bg-gradient-primary shadow-glow mt-4 md:mt-0">
+          <Button 
+            className="bg-gradient-primary shadow-glow mt-4 md:mt-0"
+            onClick={() => setIsCreateModalOpen(true)}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Create Event
           </Button>
+          <CreateEventModal
+            isOpen={isCreateModalOpen}
+            onClose={() => setIsCreateModalOpen(false)}
+            onSubmit={handleCreateEvent}
+            isLoading={isCreating}
+            initialCollegeId={localStorage.getItem('selectedCollegeId') || undefined}
+          />
         </div>
 
         {/* Stats Grid */}
@@ -175,15 +208,27 @@ export default function Dashboard() {
                 <CardDescription>Common administrative tasks</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => setIsCreateModalOpen(true)}
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   Create New Event
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => navigate('/students')}
+                >
                   <Users className="mr-2 h-4 w-4" />
                   Manage Students
                 </Button>
-                <Button variant="outline" className="w-full justify-start">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start"
+                  onClick={() => navigate('/reports')}
+                >
                   <BarChart3 className="mr-2 h-4 w-4" />
                   View Reports
                 </Button>

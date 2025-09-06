@@ -42,9 +42,45 @@ const stats = [
   { label: "Average Rating", value: "4.7", change: "+0.3" }
 ];
 
+import { useState } from "react";
+import { CollegeNameModal } from "@/components/CollegeNameModal";
+import { RoleSelectModal } from "@/components/RoleSelectModal";
+
 const Index = () => {
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showCollegeModal, setShowCollegeModal] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<"admin" | "student" | null>(null);
+  const [collegeName, setCollegeName] = useState<string | null>(null);
+
+  const handleGetStarted = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setShowRoleModal(true);
+  };
+
+  const handleRoleSelect = (role: "admin" | "student") => {
+    setSelectedRole(role);
+    setShowRoleModal(false);
+    setShowCollegeModal(true);
+  };
+
+  const handleCollegeSubmit = (name: string) => {
+    setCollegeName(name);
+    setShowCollegeModal(false);
+    // Save to localStorage for Dashboard/event form
+    localStorage.setItem('selectedCollegeId', name);
+    if (selectedRole === "student") {
+      window.location.href = "/student";
+    } else {
+      window.location.href = "/dashboard";
+    }
+  };
+
+
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      <RoleSelectModal isOpen={showRoleModal} onSelect={handleRoleSelect} />
+      <CollegeNameModal isOpen={showCollegeModal} onSubmit={handleCollegeSubmit} />
+      <div className="min-h-screen bg-background">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0">
@@ -72,12 +108,11 @@ const Index = () => {
               with our comprehensive campus event management platform
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/dashboard">
-                <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-glow">
-                  Get Started
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
+              <Button size="lg" className="bg-white text-primary hover:bg-white/90 shadow-glow" onClick={handleGetStarted}>
+  Get Started
+  <ArrowRight className="ml-2 h-5 w-5" />
+</Button>
+<CollegeNameModal isOpen={showCollegeModal} onSubmit={handleCollegeSubmit} />
               <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
                 View Demo
               </Button>
@@ -176,7 +211,7 @@ const Index = () => {
         </div>
       </section>
     </div>
-  );
+  </>);
 };
 
 export default Index;

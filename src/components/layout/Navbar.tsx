@@ -52,9 +52,13 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm">
-              Student View
-            </Button>
+            {/* Enhanced college name display */}
+            <span className="flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-gradient-to-r from-primary/5 to-white shadow-sm text-primary font-semibold text-base tracking-wide">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-accent mr-1">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l9 4.5-9 4.5-9-4.5L12 3zm0 13.5v4.5m0-4.5l9-4.5m-9 4.5l-9-4.5" />
+              </svg>
+              <span className="truncate max-w-[180px]">{typeof window !== 'undefined' && localStorage.getItem('selectedCollegeId')}</span>
+            </span>
             <Button size="sm" className="bg-gradient-primary shadow-glow">
               Admin Panel
             </Button>
