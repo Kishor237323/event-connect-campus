@@ -21,7 +21,8 @@ router.get('/dashboard', async (req, res) => {
     const [totalEventsResult] = await executeQuery(totalEventsQuery, params);
     
     // Active events
-    const activeEventsQuery = `SELECT COUNT(*) as total FROM events e ${whereClause} AND e.status = 'active'`;
+    const activeWhereClause = whereClause ? `${whereClause} AND e.status = 'active'` : `WHERE e.status = 'active'`;
+    const activeEventsQuery = `SELECT COUNT(*) as total FROM events e ${activeWhereClause}`;
     const [activeEventsResult] = await executeQuery(activeEventsQuery, params);
     
     // Total registrations
@@ -192,6 +193,73 @@ router.get('/student-participation', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch student participation report',
+      error: error.message
+    });
+  }
+});
+
+// Get student statistics
+router.get('/student-stats', async (req, res) => {
+  try {
+    const { college_id } = req.query;
+
+    let whereClause = '';
+    const params = [];
+    
+    if (college_id) {
+      whereClause = 'WHERE s.college_id = ?';
+      params.push(college_id);
+    }
+
+    const statsQuery = `
+      SELECT 
+        COUNT(DISTINCT s.id) as total_students,
+        COUNT(DISTINCT r.id) as total_registrations,
+        COUNT(DISTINCT r.event_id) as events_with_registrations,
+        CASE 
+          WHEN COUNT(DISTINCT s.id) > 0 THEN COUNT(DISTINCT r.id) / COUNT(DISTINCT s.id)
+          ELSE 0 
+        END as avg_registrations_per_student
+      FROM students s
+      LEFT JOIN registrations r ON s.id = r.student_id
+      ${whereClause}
+    `;
+
+    const [stats] = await executeQuery(statsQuery, params);
+
+    // Get top active students
+    const topStudentsQuery = `
+      SELECT 
+        s.name,
+        s.student_id,
+        COUNT(r.id) as registration_count
+      FROM students s
+      LEFT JOIN registrations r ON s.id = r.student_id
+      ${whereClause}
+      GROUP BY s.id, s.name, s.student_id
+      HAVING COUNT(r.id) > 0
+      ORDER BY registration_count DESC
+      LIMIT 5
+    `;
+
+    const topStudents = await executeQuery(topStudentsQuery, params);
+
+    res.json({
+      success: true,
+      data: {
+        total_students: parseInt(stats.total_students) || 0,
+        total_registrations: parseInt(stats.total_registrations) || 0,
+        events_with_registrations: parseInt(stats.events_with_registrations) || 0,
+        avg_registrations_per_student: parseFloat(stats.avg_registrations_per_student) || 0,
+        top_students: topStudents
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching student stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching student statistics',
       error: error.message
     });
   }

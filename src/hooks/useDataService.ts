@@ -96,12 +96,12 @@ export function useColleges() {
 }
 
 // Hook for dashboard statistics
-export function useDashboardStats() {
+export function useDashboardStats(collegeId?: string) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchStats = useCallback(async (collegeId?: string) => {
+  const fetchStats = useCallback(async (id?: string) => {
     setIsLoading(true);
     setError(null);
 
@@ -126,6 +126,11 @@ export function useDashboardStats() {
       setIsLoading(false);
     }
   }, []);
+
+  // Auto-fetch stats when collegeId changes
+  useEffect(() => {
+    fetchStats(collegeId);
+  }, [collegeId]);
 
   return {
     stats,

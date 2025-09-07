@@ -35,18 +35,37 @@ const features = [
   }
 ];
 
-const stats = [
-  { label: "Active Events", value: "24", change: "+12%" },
-  { label: "Registered Students", value: "1,847", change: "+18%" },
-  { label: "Attendance Rate", value: "87%", change: "+5%" },
-  { label: "Average Rating", value: "4.7", change: "+0.3" }
-];
-
+import { useDashboardStats } from "@/hooks/useDataService";
 import { useState } from "react";
 import { CollegeNameModal } from "@/components/CollegeNameModal";
 import { RoleSelectModal } from "@/components/RoleSelectModal";
 
 const Index = () => {
+  const { stats, isLoading } = useDashboardStats();
+
+  const landingStats = [
+    {
+      label: "Active Events",
+      value: typeof stats?.active_events !== 'undefined' ? stats.active_events : (isLoading ? '...' : 0),
+      change: '',
+    },
+    {
+      label: "Registered Students",
+      value: typeof stats?.total_registrations !== 'undefined' ? stats.total_registrations : (isLoading ? '...' : 0),
+      change: '',
+    },
+    {
+      label: "Attendance Rate",
+      value: typeof stats?.average_attendance_rate !== 'undefined' ? `${stats.average_attendance_rate}%` : (isLoading ? '...' : '0%'),
+      change: '',
+    },
+    {
+      label: "Average Rating",
+      value: typeof stats?.average_rating !== 'undefined' ? stats.average_rating : (isLoading ? '...' : 0),
+      change: '',
+    },
+  ];
+
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [showCollegeModal, setShowCollegeModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState<"admin" | "student" | null>(null);
@@ -125,7 +144,7 @@ const Index = () => {
       <section className="py-16 bg-background">
         <div className="container mx-auto px-4">
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {stats.map((stat, index) => (
+            {landingStats.map((stat, index) => (
               <Card key={index} className="text-center shadow-card bg-gradient-card">
                 <CardContent className="pt-6">
                   <div className="text-3xl font-bold text-foreground mb-2">{stat.value}</div>

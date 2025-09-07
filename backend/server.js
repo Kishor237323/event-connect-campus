@@ -9,11 +9,14 @@ import { testConnection } from './database/connection.js';
 import eventsRouter from './routes/events.js';
 import collegesRouter from './routes/colleges.js';
 import reportsRouter from './routes/reports.js';
+import registrationsRouter from './routes/registrations.js';
+import studentsRouter from './routes/students.js';
 
 // Load environment variables
 dotenv.config();
 
 const app = express();
+app.use(cors());
 const PORT = process.env.PORT || 3001;
 
 // Security middleware
@@ -21,8 +24,8 @@ app.use(helmet());
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 1000, // allow 1000 requests per minute for local dev
   message: 'Too many requests from this IP, please try again later.'
 });
 app.use(limiter);
@@ -63,6 +66,8 @@ app.get('/api', (req, res) => {
       events: '/api/events',
       colleges: '/api/colleges',
       reports: '/api/reports',
+      registrations: '/api/registrations',
+      students: '/api/students',
       health: '/health'
     }
   });
@@ -72,6 +77,8 @@ app.get('/api', (req, res) => {
 app.use('/api/events', eventsRouter);
 app.use('/api/colleges', collegesRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/registrations', registrationsRouter);
+app.use('/api/students', studentsRouter);
 
 // 404 handler
 app.use('*', (req, res) => {

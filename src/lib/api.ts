@@ -147,6 +147,11 @@ export const collegesApi = {
 
 // Reports API
 export const reportsApi = {
+  // Get student statistics
+  async getStudentStats(college_id?: string) {
+    const params = college_id ? `?college_id=${college_id}` : '';
+    return apiRequest<{ success: boolean; data: any }>(`/reports/student-stats${params}`);
+  },
   // Get dashboard statistics
   async getDashboardStats(college_id?: string) {
     const params = college_id ? `?college_id=${college_id}` : '';
@@ -175,6 +180,16 @@ export const reportsApi = {
     const endpoint = queryString ? `/reports/student-participation?${queryString}` : '/reports/student-participation';
     
     return apiRequest<{ success: boolean; data: any[] }>(endpoint);
+  },
+};
+
+export const studentsApi = {
+  async getStudents(filters: { college_id?: string } = {}) {
+    const params = new URLSearchParams();
+    if (filters.college_id) params.append('college_id', filters.college_id);
+    const queryString = params.toString();
+    const endpoint = queryString ? `/students?${queryString}` : '/students';
+    return apiRequest<{ success: boolean; data: { students: any[] } }>(endpoint);
   },
 };
 

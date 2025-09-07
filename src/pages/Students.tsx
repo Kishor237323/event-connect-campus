@@ -18,111 +18,55 @@ import {
   Download
 } from "lucide-react";
 
-const students = [
-  {
-    id: 1,
-    name: "Alice Johnson",
-    email: "alice.johnson@university.edu",
-    phone: "+1 (555) 123-4567",
-    year: "Senior",
-    major: "Computer Science",
-    eventsAttended: 12,
-    eventsRegistered: 15,
-    lastActive: "2 hours ago",
-    status: "Active",
-    avatar: "/api/placeholder/40/40"
-  },
-  {
-    id: 2,
-    name: "Bob Smith",
-    email: "bob.smith@university.edu",
-    phone: "+1 (555) 234-5678",
-    year: "Junior",
-    major: "Engineering",
-    eventsAttended: 8,
-    eventsRegistered: 10,
-    lastActive: "1 day ago",
-    status: "Active",
-    avatar: "/api/placeholder/40/40"
-  },
-  {
-    id: 3,
-    name: "Carol Davis",
-    email: "carol.davis@university.edu",
-    phone: "+1 (555) 345-6789",
-    year: "Sophomore",
-    major: "Business",
-    eventsAttended: 15,
-    eventsRegistered: 18,
-    lastActive: "3 hours ago",
-    status: "Active",
-    avatar: "/api/placeholder/40/40"
-  },
-  {
-    id: 4,
-    name: "David Wilson",
-    email: "david.wilson@university.edu",
-    phone: "+1 (555) 456-7890",
-    year: "Senior",
-    major: "Arts",
-    eventsAttended: 6,
-    eventsRegistered: 8,
-    lastActive: "1 week ago",
-    status: "Inactive",
-    avatar: "/api/placeholder/40/40"
-  }
-];
+import { useStudents } from "@/hooks/useStudents";
 
-const topStudents = [
-  { name: "Carol Davis", events: 15, major: "Business" },
-  { name: "Alice Johnson", events: 12, major: "Computer Science" },
-  { name: "Bob Smith", events: 8, major: "Engineering" }
-];
-
-const stats = [
-  {
-    title: "Total Students",
-    value: "1,847",
-    change: "+12%",
-    icon: Users,
-    color: "text-primary"
-  },
-  {
-    title: "Active This Month",
-    value: "1,234",
-    change: "+8%",
-    icon: TrendingUp,
-    color: "text-success"
-  },
-  {
-    title: "Avg. Events/Student",
-    value: "8.3",
-    change: "+2.1",
-    icon: Calendar,
-    color: "text-accent"
-  },
-  {
-    title: "Top Performers",
-    value: "156",
-    change: "+15",
-    icon: Award,
-    color: "text-primary-glow"
-  }
-];
+import { useStudentStats } from "@/hooks/useStudentStats";
 
 export default function Students() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("all");
+  const selectedCollegeId = typeof window !== 'undefined' ? localStorage.getItem('selectedCollegeId') : undefined;
+  const { stats: studentStats, isLoading: isStatsLoading } = useStudentStats(selectedCollegeId || undefined);
+  const { students, isLoading: isStudentsLoading } = useStudents({ college_id: selectedCollegeId || undefined });
+
+  const statCards = [
+    {
+      title: "Total Students",
+      value: studentStats?.total_students ?? 0,
+      change: studentStats?.total_students_change ?? '',
+      icon: Users,
+      color: "text-primary"
+    },
+    {
+      title: "Active This Month",
+      value: studentStats?.active_students ?? 0,
+      change: studentStats?.active_students_change ?? '',
+      icon: TrendingUp,
+      color: "text-success"
+    },
+    {
+      title: "Avg. Events/Student",
+      value: studentStats?.average_events_per_student ?? 0,
+      change: studentStats?.average_events_per_student_change ?? '',
+      icon: Calendar,
+      color: "text-accent"
+    },
+    {
+      title: "Top Performers",
+      value: studentStats?.top_performers ?? 0,
+      change: studentStats?.top_performers_change ?? '',
+      icon: Award,
+      color: "text-primary-glow"
+    }
+  ];
+
 
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         student.major.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesTab = activeTab === "all" || 
-                      (activeTab === "active" && student.status === "Active") ||
-                      (activeTab === "inactive" && student.status === "Inactive");
-    
-    return matchesSearch && matchesTab;
+                         (student.major || '').toLowerCase().includes(searchTerm.toLowerCase());
+    // Only filter by search, since status is not in Student type
+    return matchesSearch;
   });
 
   const getStatusColor = (status: string) => {
@@ -143,7 +87,7 @@ export default function Students() {
 
         {/* Stats Grid */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          {stats.map((stat, index) => (
+          {statCards.map((stat, index) => (
             <Card key={index} className="shadow-card bg-gradient-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -152,10 +96,10 @@ export default function Students() {
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-foreground">{stat.value}</div>
+                <div className="text-2xl font-bold text-foreground">{isStatsLoading ? '...' : stat.value}</div>
                 <p className="text-xs text-success flex items-center mt-1">
                   <TrendingUp className="mr-1 h-3 w-3" />
-                  {stat.change} from last month
+                  {stat.change ? `${stat.change} from last month` : ''}
                 </p>
               </CardContent>
             </Card>
@@ -198,7 +142,6 @@ export default function Students() {
                     <div key={student.id} className="flex items-center justify-between p-4 rounded-lg border bg-gradient-card hover:shadow-card transition-smooth">
                       <div className="flex items-center space-x-4">
                         <Avatar>
-                          <AvatarImage src={student.avatar} alt={student.name} />
                           <AvatarFallback>{getInitials(student.name)}</AvatarFallback>
                         </Avatar>
                         <div>
@@ -208,21 +151,11 @@ export default function Students() {
                               <Mail className="mr-1 h-3 w-3" />
                               {student.email}
                             </span>
-                            <span>{student.year} • {student.major}</span>
-                          </div>
-                          <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
-                            <span>{student.eventsAttended} events attended</span>
-                            <span>•</span>
-                            <span>{student.eventsRegistered} registered</span>
-                            <span>•</span>
-                            <span>Active {student.lastActive}</span>
+                            <span>{student.year ? `Year: ${student.year}` : ''} {student.major ? `• ${student.major}` : ''}</span>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge className={getStatusColor(student.status)}>
-                          {student.status}
-                        </Badge>
                         <Button variant="ghost" size="sm">
                           <Mail className="h-4 w-4" />
                         </Button>
@@ -246,32 +179,6 @@ export default function Students() {
               </CardContent>
             </Card>
           </div>
-
-          {/* Top Students Sidebar */}
-          <Card className="shadow-card">
-            <CardHeader>
-              <CardTitle className="text-foreground">Top Active Students</CardTitle>
-              <CardDescription>Most engaged students this month</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {topStudents.map((student, index) => (
-                <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-gradient-card">
-                  <div className="flex items-center space-x-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-primary text-primary-foreground text-sm font-medium">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground text-sm">{student.name}</p>
-                      <p className="text-xs text-muted-foreground">{student.major}</p>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="text-xs">
-                    {student.events} events
-                  </Badge>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

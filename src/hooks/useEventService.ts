@@ -1,5 +1,5 @@
 // Event service hooks using REST API
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { eventsApi, ApiError } from '@/lib/api';
 import { CreateEventRequest, Event } from '@/types';
 
@@ -50,7 +50,13 @@ export function useCreateEvent() {
 }
 
 // Hook for fetching events
-export function useEvents() {
+export function useEvents(filtersArg: {
+  college_id?: string;
+  status?: string;
+  category?: string;
+  limit?: number;
+  offset?: number;
+} = {}) {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -90,6 +96,11 @@ export function useEvents() {
       setIsLoading(false);
     }
   }, []);
+
+  // Auto-fetch events on mount or when filtersArg changes
+  useEffect(() => {
+    fetchEvents(filtersArg);
+  }, [JSON.stringify(filtersArg)]);
 
   return {
     events,

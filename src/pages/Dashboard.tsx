@@ -19,71 +19,46 @@ import { useState } from "react";
 import { CreateEventRequest } from "@/types";
 
 
-const upcomingEvents = [
-  {
-    id: 1,
-    title: "Tech Symposium 2024",
-    date: "March 15, 2024",
-    time: "2:00 PM",
-    location: "Engineering Hall",
-    registered: 180,
-    capacity: 200,
-    status: "Active"
-  },
-  {
-    id: 2,
-    title: "Cultural Festival",
-    date: "March 20, 2024",
-    time: "10:00 AM",
-    location: "Campus Grounds",
-    registered: 450,
-    capacity: 500,
-    status: "Active"
-  },
-  {
-    id: 3,
-    title: "Career Fair",
-    date: "March 25, 2024",
-    time: "9:00 AM",
-    location: "Student Center",
-    registered: 320,
-    capacity: 400,
-    status: "Active"
-  }
-];
+import { useEvents } from "@/hooks/useEventService";
+import { useDashboardStats } from "@/hooks/useDataService";
+import { useEventRegistrations } from "@/hooks/useEventRegistrations";
+import { EventRegistrationCount } from "@/components/EventRegistrationCount";
+import { Loader2 } from "lucide-react";
 
-const stats = [
+const statsConfig = [
   {
     title: "Total Events",
-    value: "24",
-    change: "+12%",
+    key: "total_events",
     icon: Calendar,
     color: "text-primary"
   },
   {
     title: "Registered Students",
-    value: "1,847",
-    change: "+18%",
+    key: "total_registrations",
     icon: Users,
     color: "text-success"
   },
   {
     title: "Attendance Rate",
-    value: "87%",
-    change: "+5%",
+    key: "average_attendance_rate",
     icon: TrendingUp,
-    color: "text-accent"
+    color: "text-accent",
+    isPercent: true
   },
   {
     title: "Active Events",
-    value: "8",
-    change: "+3",
+    key: "active_events",
     icon: Clock,
     color: "text-primary-glow"
   }
 ];
 
 export default function Dashboard() {
+
+  // Fetch events once at the top level for consistent access and logging
+  const selectedCollegeId = localStorage.getItem('selectedCollegeId');
+  const { events, isLoading: isEventsLoading } = useEvents({ college_id: selectedCollegeId || undefined });
+  console.log('Fetched events:', events);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -111,13 +86,6 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
             <p className="text-muted-foreground">Overview of your campus events and activities</p>
           </div>
-          <Button 
-            className="bg-gradient-primary shadow-glow mt-4 md:mt-0"
-            onClick={() => setIsCreateModalOpen(true)}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Create Event
-          </Button>
           <CreateEventModal
             isOpen={isCreateModalOpen}
             onClose={() => setIsCreateModalOpen(false)}
@@ -128,25 +96,32 @@ export default function Dashboard() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          {stats.map((stat, index) => (
-            <Card key={index} className="shadow-card bg-gradient-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
-                </CardTitle>
-                <stat.icon className={`h-4 w-4 ${stat.color}`} />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                <p className="text-xs text-success flex items-center mt-1">
-                  <TrendingUp className="mr-1 h-3 w-3" />
-                  {stat.change} from last month
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        {(() => {
+          const { stats, isLoading } = useDashboardStats(selectedCollegeId || undefined);
+          return (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
+              {statsConfig.map((config, index) => {
+                const value = stats && typeof stats[config.key] !== 'undefined'
+                  ? config.isPercent ? `${stats[config.key]}%` : stats[config.key]
+                  : isLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : 0;
+                return (
+                  <Card key={index} className="shadow-card bg-gradient-card">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        {config.title}
+                      </CardTitle>
+                      <config.icon className={`h-4 w-4 ${config.color}`} />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-foreground">{value}</div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          );
+        })()}
+
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Upcoming Events */}
@@ -164,39 +139,73 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {upcomingEvents.map((event) => (
-                <div key={event.id} className="flex items-center justify-between p-4 rounded-lg border bg-gradient-card">
-                  <div className="space-y-1">
-                    <h4 className="font-semibold text-foreground">{event.title}</h4>
-                    <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                      <span className="flex items-center">
-                        <Calendar className="mr-1 h-3 w-3" />
-                        {event.date}
-                      </span>
-                      <span className="flex items-center">
-                        <Clock className="mr-1 h-3 w-3" />
-                        {event.time}
-                      </span>
-                      <span className="flex items-center">
-                        <MapPin className="mr-1 h-3 w-3" />
+              {/* Upcoming Events Content */}
+              {(() => {
+                // useEvents is now called at the top level of Dashboard
+                if (isEventsLoading) return <div className="flex justify-center py-8"><Loader2 className="h-8 w-8 animate-spin" /></div>;
+                if (!events.length) return <div className="text-center py-8 text-muted-foreground">No upcoming events found.</div>;
+                console.log('All events from API:', events);
+                const now = new Date();
+                const formatDate = (dateString: string) => {
+                  return new Date(dateString).toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  });
+                };
+                const formatTime = (dateString: string) => {
+                  return new Date(dateString).toLocaleTimeString('en-US', {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  });
+                };
+                const upcoming = events
+                  .filter(event => event.start_date && new Date(event.start_date) > now)
+                  .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+                return upcoming.map((event) => (
+                  <Card key={event.id} className="shadow-card hover:shadow-elegant transition-smooth overflow-hidden">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <CardTitle className="text-foreground line-clamp-1">{event.title}</CardTitle>
+                          <CardDescription className="line-clamp-2 mt-1">
+                            {event.description || "No description provided"}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="w-fit">
+                        {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
+                      </Badge>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm text-muted-foreground">
+                      <div className="flex items-center">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {formatDate(event.start_date)}
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="mr-2 h-4 w-4" />
+                        {formatTime(event.start_date)} - {formatTime(event.end_date)}
+                      </div>
+                      <div className="flex items-center">
+                        <MapPin className="mr-2 h-3 w-3" />
                         {event.location}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Progress 
-                        value={(event.registered / event.capacity) * 100} 
-                        className="w-32 h-2" 
+                      </div>
+                      <div className="flex items-center">
+                        <Users className="mr-2 h-4 w-4" />
+                        Capacity: {event.capacity}
+                      </div>
+                      <EventRegistrationCount 
+                        eventId={event.id} 
+                        collegeId={selectedCollegeId || undefined}
+                        showRefresh={true}
                       />
-                      <span className="text-sm text-muted-foreground">
-                        {event.registered}/{event.capacity}
-                      </span>
-                    </div>
-                  </div>
-                  <Badge variant="secondary" className="bg-success/10 text-success">
-                    {event.status}
-                  </Badge>
-                </div>
-              ))}
+                    </CardContent>
+                  </Card>
+                ));
+              })()}
+
+
             </CardContent>
           </Card>
 
