@@ -16,65 +16,37 @@ router.get('/dashboard', async (req, res) => {
       params.push(college_id);
     }
     
-    // Total events
-    const totalEventsQuery = `SELECT COUNT(*) as total FROM events e ${whereClause}`;
-    const [totalEventsResult] = await executeQuery(totalEventsQuery, params);
-    
-    // Active events
-    const activeWhereClause = whereClause ? `${whereClause} AND e.status = 'active'` : `WHERE e.status = 'active'`;
-    const activeEventsQuery = `SELECT COUNT(*) as total FROM events e ${activeWhereClause}`;
-    const [activeEventsResult] = await executeQuery(activeEventsQuery, params);
-    
-    // Total registrations
-    const registrationsQuery = `
-      SELECT COUNT(*) as total 
-      FROM registrations r 
-      JOIN events e ON r.event_id = e.id 
-      ${whereClause.replace('e.', 'e.')}
-    `;
-    const [registrationsResult] = await executeQuery(registrationsQuery, params);
-    
-    // Total attendance
-    const attendanceQuery = `
-      SELECT COUNT(*) as total 
-      FROM attendance a 
-      JOIN registrations r ON a.registration_id = r.id 
-      JOIN events e ON r.event_id = e.id 
-      ${whereClause.replace('e.', 'e.')}
-    `;
-    const [attendanceResult] = await executeQuery(attendanceQuery, params);
-    
-    // Average attendance rate
-    const avgAttendanceQuery = `
+    // Optimized: Fetch all stats in a single query using subqueries
+    const statsQuery = `
       SELECT 
-        CASE 
-          WHEN COUNT(r.id) > 0 THEN (COUNT(a.id) * 100.0 / COUNT(r.id))
-          ELSE 0 
-        END as rate
-      FROM registrations r 
-      JOIN events e ON r.event_id = e.id 
-      LEFT JOIN attendance a ON r.id = a.registration_id 
-      ${whereClause.replace('e.', 'e.')}
+        (SELECT COUNT(*) FROM events e ${whereClause}) as total_events,
+        (SELECT COUNT(*) FROM events e ${whereClause ? `${whereClause} AND e.status = 'active'` : `WHERE e.status = 'active'`}) as active_events,
+        (SELECT COUNT(*) FROM registrations r JOIN events e ON r.event_id = e.id ${whereClause}) as total_registrations,
+        (SELECT COUNT(*) FROM attendance a JOIN registrations r ON a.registration_id = r.id JOIN events e ON r.event_id = e.id ${whereClause}) as total_attendance,
+        (SELECT 
+          CASE 
+            WHEN COUNT(r.id) > 0 THEN (COUNT(a.id) * 100.0 / COUNT(r.id))
+            ELSE 0 
+          END
+         FROM registrations r 
+         JOIN events e ON r.event_id = e.id 
+         LEFT JOIN attendance a ON r.id = a.registration_id 
+         ${whereClause}
+        ) as average_attendance_rate,
+        (SELECT AVG(f.rating) FROM feedback f JOIN registrations r ON f.registration_id = r.id JOIN events e ON r.event_id = e.id ${whereClause}) as average_rating
     `;
-    const [avgAttendanceResult] = await executeQuery(avgAttendanceQuery, params);
     
-    // Average rating
-    const avgRatingQuery = `
-      SELECT AVG(f.rating) as average 
-      FROM feedback f 
-      JOIN registrations r ON f.registration_id = r.id 
-      JOIN events e ON r.event_id = e.id 
-      ${whereClause.replace('e.', 'e.')}
-    `;
-    const [avgRatingResult] = await executeQuery(avgRatingQuery, params);
+    // Build params array based on number of subqueries that use college_id
+    const queryParams = college_id ? [college_id, college_id, college_id, college_id, college_id, college_id] : [];
+    const [statsResult] = await executeQuery(statsQuery, queryParams);
     
     const stats = {
-      total_events: totalEventsResult.total,
-      active_events: activeEventsResult.total,
-      total_registrations: registrationsResult.total,
-      total_attendance: attendanceResult.total,
-      average_attendance_rate: parseFloat(avgAttendanceResult.rate || 0),
-      average_rating: parseFloat(avgRatingResult.average || 0)
+      total_events: statsResult.total_events,
+      active_events: statsResult.active_events,
+      total_registrations: statsResult.total_registrations,
+      total_attendance: statsResult.total_attendance,
+      average_attendance_rate: parseFloat(statsResult.average_attendance_rate || 0),
+      average_rating: parseFloat(statsResult.average_rating || 0)
     };
     
     res.json({

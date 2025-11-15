@@ -98,9 +98,12 @@ export function useEvents(filtersArg: {
   }, []);
 
   // Auto-fetch events on mount or when filtersArg changes
+  // Use stable stringified key to avoid unnecessary re-renders
+  const filtersKey = JSON.stringify(filtersArg);
   useEffect(() => {
     fetchEvents(filtersArg);
-  }, [JSON.stringify(filtersArg)]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtersKey, fetchEvents]);
 
   return {
     events,
