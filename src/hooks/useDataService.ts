@@ -106,7 +106,7 @@ export function useDashboardStats(collegeId?: string) {
     setError(null);
 
     try {
-      const response = await reportsApi.getDashboardStats(collegeId);
+      const response = await reportsApi.getDashboardStats(id || collegeId);
       
       if (response.success) {
         setStats(response.data);
@@ -125,12 +125,12 @@ export function useDashboardStats(collegeId?: string) {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [collegeId]);
 
   // Auto-fetch stats when collegeId changes
   useEffect(() => {
-    fetchStats(collegeId);
-  }, [collegeId]);
+    fetchStats();
+  }, [fetchStats]);
 
   return {
     stats,

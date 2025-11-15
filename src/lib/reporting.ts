@@ -76,8 +76,11 @@ export async function getEventPopularityReport(params: ReportQueryParams = {}): 
       if (data) data.registrations.push(reg);
     });
 
+    // Create lookup map for registrations to avoid O(n²) complexity
+    const registrationMap = new Map(registrations.map(r => [r.id, r]));
+
     attendance.forEach(att => {
-      const reg = registrations.find(r => r.id === att.registration_id);
+      const reg = registrationMap.get(att.registration_id);
       if (reg) {
         const data = eventData.get(reg.event_id);
         if (data) data.attendance.push(att);
@@ -85,7 +88,7 @@ export async function getEventPopularityReport(params: ReportQueryParams = {}): 
     });
 
     feedback.forEach(fb => {
-      const reg = registrations.find(r => r.id === fb.registration_id);
+      const reg = registrationMap.get(fb.registration_id);
       if (reg) {
         const data = eventData.get(reg.event_id);
         if (data) data.feedback.push(fb);
@@ -188,13 +191,16 @@ export async function getStudentParticipationReport(params: ReportQueryParams = 
       });
     });
 
+    // Create lookup map for registrations to avoid O(n²) complexity
+    const registrationMap = new Map(registrations.map(r => [r.id, r]));
+
     registrations.forEach(reg => {
       const data = studentData.get(reg.student_id);
       if (data) data.registrations.push(reg);
     });
 
     attendance.forEach(att => {
-      const reg = registrations.find(r => r.id === att.registration_id);
+      const reg = registrationMap.get(att.registration_id);
       if (reg) {
         const data = studentData.get(reg.student_id);
         if (data) data.attendance.push(att);
@@ -202,21 +208,27 @@ export async function getStudentParticipationReport(params: ReportQueryParams = 
     });
 
     feedback.forEach(fb => {
-      const reg = registrations.find(r => r.id === fb.registration_id);
+      const reg = registrationMap.get(fb.registration_id);
       if (reg) {
         const data = studentData.get(reg.student_id);
         if (data) data.feedback.push(fb);
       }
     });
 
-    // Calculate metrics
+    // Calculate metrics with optimized Set operations
     const results: StudentParticipationReport[] = Array.from(studentData.values())
       .map(({ student, registrations, attendance, feedback }) => {
         const eventsRegistered = new Set(registrations.map(r => r.event_id)).size;
-        const eventsAttended = new Set(attendance.map(a => {
-          const reg = registrations.find(r => r.id === a.registration_id);
-          return reg?.event_id;
-        }).filter(Boolean)).size;
+        
+        // Build event set from attendance using the registration map
+        const attendedEventIds = new Set<string>();
+        attendance.forEach(a => {
+          const reg = registrationMap.get(a.registration_id);
+          if (reg?.event_id) {
+            attendedEventIds.add(reg.event_id);
+          }
+        });
+        const eventsAttended = attendedEventIds.size;
 
         const attendanceRate = eventsRegistered > 0 ? (eventsAttended / eventsRegistered) * 100 : 0;
         const averageRatingGiven = feedback.length > 0 ? feedback.reduce((sum, f) => sum + f.rating, 0) / feedback.length : 0;
@@ -298,6 +310,10 @@ export async function getMonthlyTrendsReport(params: ReportQueryParams = {}): Pr
       feedback: any[];
     }>();
 
+    // Create lookup maps for registrations and events to avoid O(n²) complexity
+    const registrationMap = new Map(registrations.map(r => [r.id, r]));
+    const eventMap = new Map(events.map(e => [e.id, e]));
+
     events.forEach(event => {
       const month = event.start_date.substring(0, 7); // YYYY-MM
       if (!monthlyData.has(month)) {
@@ -307,7 +323,7 @@ export async function getMonthlyTrendsReport(params: ReportQueryParams = {}): Pr
     });
 
     registrations.forEach(reg => {
-      const event = events.find(e => e.id === reg.event_id);
+      const event = eventMap.get(reg.event_id);
       if (event) {
         const month = event.start_date.substring(0, 7);
         const data = monthlyData.get(month);
@@ -316,9 +332,9 @@ export async function getMonthlyTrendsReport(params: ReportQueryParams = {}): Pr
     });
 
     attendance.forEach(att => {
-      const reg = registrations.find(r => r.id === att.registration_id);
+      const reg = registrationMap.get(att.registration_id);
       if (reg) {
-        const event = events.find(e => e.id === reg.event_id);
+        const event = eventMap.get(reg.event_id);
         if (event) {
           const month = event.start_date.substring(0, 7);
           const data = monthlyData.get(month);
@@ -328,9 +344,9 @@ export async function getMonthlyTrendsReport(params: ReportQueryParams = {}): Pr
     });
 
     feedback.forEach(fb => {
-      const reg = registrations.find(r => r.id === fb.registration_id);
+      const reg = registrationMap.get(fb.registration_id);
       if (reg) {
-        const event = events.find(e => e.id === reg.event_id);
+        const event = eventMap.get(reg.event_id);
         if (event) {
           const month = event.start_date.substring(0, 7);
           const data = monthlyData.get(month);
@@ -417,15 +433,16 @@ export async function getTopStudentsReport(params: ReportQueryParams = {}): Prom
       .and(att => att.status === 'present')
       .toArray();
 
-    // Group by student
+    // Group by student using a map for O(1) lookups
     const studentAttendance = new Map<string, Set<string>>();
+    const registrationMap = new Map(registrations.map(r => [r.id, r]));
 
     students.forEach(student => {
       studentAttendance.set(student.id, new Set());
     });
 
     attendance.forEach(att => {
-      const reg = registrations.find(r => r.id === att.registration_id);
+      const reg = registrationMap.get(att.registration_id);
       if (reg) {
         const studentData = studentAttendance.get(reg.student_id);
         if (studentData) {
@@ -504,6 +521,10 @@ export async function getEventTypeAnalysisReport(params: ReportQueryParams = {})
       feedback: any[];
     }>();
 
+    // Create lookup maps for registrations and events to avoid O(n²) complexity
+    const registrationMap = new Map(registrations.map(r => [r.id, r]));
+    const eventMap = new Map(events.map(e => [e.id, e]));
+
     events.forEach(event => {
       if (!categoryData.has(event.category)) {
         categoryData.set(event.category, { events: [], registrations: [], attendance: [], feedback: [] });
@@ -512,7 +533,7 @@ export async function getEventTypeAnalysisReport(params: ReportQueryParams = {})
     });
 
     registrations.forEach(reg => {
-      const event = events.find(e => e.id === reg.event_id);
+      const event = eventMap.get(reg.event_id);
       if (event) {
         const data = categoryData.get(event.category);
         if (data) data.registrations.push(reg);
@@ -520,9 +541,9 @@ export async function getEventTypeAnalysisReport(params: ReportQueryParams = {})
     });
 
     attendance.forEach(att => {
-      const reg = registrations.find(r => r.id === att.registration_id);
+      const reg = registrationMap.get(att.registration_id);
       if (reg) {
-        const event = events.find(e => e.id === reg.event_id);
+        const event = eventMap.get(reg.event_id);
         if (event) {
           const data = categoryData.get(event.category);
           if (data) data.attendance.push(att);
@@ -531,9 +552,9 @@ export async function getEventTypeAnalysisReport(params: ReportQueryParams = {})
     });
 
     feedback.forEach(fb => {
-      const reg = registrations.find(r => r.id === fb.registration_id);
+      const reg = registrationMap.get(fb.registration_id);
       if (reg) {
-        const event = events.find(e => e.id === reg.event_id);
+        const event = eventMap.get(reg.event_id);
         if (event) {
           const data = categoryData.get(event.category);
           if (data) data.feedback.push(fb);
